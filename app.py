@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
 from azure.storage.blob import BlobServiceClient
@@ -17,7 +18,7 @@ def get_db_connection():
         password=os.getenv('DB_PASSWORD'),
         database=os.getenv('DB_NAME'),
         ssl_ca='',             # Sudah diperbaiki ke ssl_ca (Double S)
-        ssl_verify_cert=False  # Trafik tetap aman terenkripsi TLS di Azure
+        ssl_verify_cert=False  # Trafik tetap aman terenkripsi TLS di cloud Azure
     )
 
 # Konfigurasi Azure Storage
@@ -34,12 +35,18 @@ def submit_task():
         file = request.files['file_tugas']
         
         if file:
-            # 1. Upload ke Azure Blob Storage
+            # Mengonversi nama file agar aman dari spasi/karakter unik di URL
+            safe_filename = urllib.parse.quote(f"{nim}_{file.filename}")
+            
+            # 1. Upload ke Azure Blob Storage (Gunakan nama asli untuk object blob)
             blob_client = blob_service_client.get_blob_client(container=container_name, blob=f"{nim}_{file.filename}")
             blob_client.upload_blob(file.read(), overwrite=True)
-            file_url = blob_client.url
             
-            # 2. Simpan Metadata ke Azure MySQL
+            # 2. Susun URL yang valid (Gunakan safe_filename agar link bisa diunduh)
+            base_url = blob_client.url.rsplit('/', 1)[0]
+            file_url = f"{base_url}/{safe_filename}"
+            
+            # 3. Simpan Metadata ke Azure MySQL
             conn = get_db_connection()
             cursor = conn.cursor()
             query = "INSERT INTO submissions (nim, name, class, course, file_url, status) VALUES (%s, %s, %s, %s, %s, 'Pending')"
