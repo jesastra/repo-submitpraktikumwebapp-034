@@ -2,9 +2,11 @@ import os
 from flask import Flask, render_template, request, redirect, url_for
 import mysql.connector
 from azure.storage.blob import BlobServiceClient
-from dotenv import load_load_env
+from dotenv import load_dotenv
 
-load_env()
+# Membaca environment variables dengan fungsi yang benar
+load_dotenv()
+
 app = Flask(__name__)
 
 # Konfigurasi Database
