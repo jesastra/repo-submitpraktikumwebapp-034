@@ -18,6 +18,8 @@ app.get('/submit-task', (req, res) => {
             Mata Kuliah: <input type="text" name="course" required><br><br>
             File Tugas: <input type="file" name="fileTugas" required><br><br>
             <button type="submit">Upload Tugas</button>
+            <br><br>
+            <a href="/admin-login">Login sebagai Admin</a>
         </form>
     `);
 });
@@ -124,7 +126,7 @@ app.get('/task-detail', async (req, res) => {
 
         if (rows.length === 0) return res.send("Tugas tidak ditemukan.");
         
-        const row = rows;
+        const row = rows.shift();
         // Mengambil token SAS untuk izin akses unduh
         const sasTokenString = process.env.STORAGE_SAS_URL.split('?').pop();
         const downloadUrl = `${row.file_url}?${sasTokenString}`;
