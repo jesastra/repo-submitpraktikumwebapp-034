@@ -59,5 +59,41 @@ app.post('/submit-task', upload.single('fileTugas'), async (req, res) => {
     }
 });
 
+// Halaman Daftar Tugas (Admin)
+app.get('/task-list', async (req, res) => {
+    try {
+        const conn = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: 'db_praktikumsubmit',
+            ssl: { rejectUnauthorized: false }
+        });
+        const [rows] = await conn.execute("SELECT * FROM submissions");
+        await conn.end();
+
+        // Mengambil SAS Token dari Environment Variables untuk Bypass akses Private
+        const sasToken = process.env.STORAGE_SAS_URL.split('?')[1];
+
+        let html = "<h2>Daftar Pengumpulan Tugas</h2><table border='1'><tr><th>NIM</th><th>Nama</th><th>Mata Kuliah</th><th>Status</th><th>File</th></tr>";
+        
+        rows.forEach(row => {
+            // Gabungkan URL dasar database dengan SAS Token agar file bisa diunduh
+            const downloadUrl = `${row.file_url}?${sasToken}`;
+            html += `<tr>
+                <td>${row.nim}</td>
+                <td>${row.name}</td>
+                <td>${row.course}</td>
+                <td>${row.status}</td>
+                <td><a href="${downloadUrl}" target="_blank">Unduh Tugas</a></td>
+            </tr>`;
+        });
+        html += "</table>";
+        res.send(html);
+    } catch (error) {
+        res.status(500).send("Gagal memuat data: " + error.message);
+    }
+});
+
 const port = process.env.PORT || 8080;
 app.listen(port, () => console.log(`Server running on port ${port}`));
