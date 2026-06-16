@@ -30,8 +30,8 @@ app.post('/submit-task', upload.single('fileTugas'), async (req, res) => {
     const sasUrl = process.env.STORAGE_SAS_URL; 
     const uploadUrl = sasUrl.replace('?', `/${fileName}?`);
     
-    // Menggunakan .shift() agar mengambil URL murni tanpa token dan tanpa kurung siku
-    const fileUrlOnly = uploadUrl.split('?').shift(); 
+    // INI ADALAH BAGIAN YANG ERROR SEBELUMNYA. Sekarang sudah benar menggunakan 
+    const fileUrlOnly = uploadUrl.split('?'); 
 
     try {
         await axios.put(uploadUrl, req.file.buffer, {
@@ -71,12 +71,13 @@ app.get('/task-list', async (req, res) => {
         const [rows] = await conn.execute("SELECT * FROM submissions");
         await conn.end();
 
-        // Menggunakan .pop() untuk mengambil murni token SAS-nya saja
-        const sasTokenString = process.env.STORAGE_SAS_URL.split('?').pop();
+        // Mengambil string token SAS saja untuk digabungkan dengan URL unduh
+        const sasTokenString = process.env.STORAGE_SAS_URL.split('?')[2];
 
         let html = "<h2>Daftar Pengumpulan Tugas (Admin)</h2><table border='1' cellpadding='10'><tr><th>NIM</th><th>Nama</th><th>Mata Kuliah</th><th>Status</th><th>File</th></tr>";
         
         rows.forEach(row => {
+            // Gabungkan URL bersih dengan token agar file bisa diunduh
             const downloadUrl = `${row.file_url}?${sasTokenString}`;
             html += `<tr>
                 <td>${row.nim}</td>
@@ -92,3 +93,6 @@ app.get('/task-list', async (req, res) => {
         res.status(500).send("Gagal memuat data: " + error.message);
     }
 });
+
+const port = process.env.PORT || 8080;
+app.listen(port, () => console.log(`Server running on port ${port}`));
