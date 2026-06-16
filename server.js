@@ -54,7 +54,7 @@ app.post('/submit-task', upload.single('fileTugas'), async (req, res) => {
         );
         await conn.end();
 
-        res.send("<h3>Berhasil! Tugas tersimpan dengan status: Pending</h3><br><a href='/task-list'>Lihat Daftar Tugas</a>");
+      res.send("<h3>Berhasil! Tugas tersimpan dengan status: Pending</h3><br><a href='/submit-task'>Kembali Kumpulkan Tugas</a>");
     } catch (error) {
         res.status(500).send("Gagal memproses tugas: " + error.message);
     }
