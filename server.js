@@ -57,8 +57,29 @@ app.post('/submit-task', upload.single('fileTugas'), async (req, res) => {
         res.status(500).send("Gagal memproses tugas: " + error.message);
     }
 });
+// --- SKENARIO 3: ADMIN LOGIN ---
+app.get('/admin-login', (req, res) => {
+    res.send(`
+        <h2>Login Admin PraktikumSubmit</h2>
+        <form action="/admin-login" method="POST">
+            Username: <input type="text" name="username" required><br><br>
+            Password: <input type="password" name="password" required><br><br>
+            <button type="submit">Login</button>
+        </form>
+    `);
+});
 
-// Skenario 3: Halaman Admin untuk Mengecek Tugas
+app.post('/admin-login', (req, res) => {
+    const { username, password } = req.body;
+    // Login statis sederhana
+    if (username === 'admin' && password === 'admin123') {
+        res.redirect('/task-list');
+    } else {
+        res.send("Login Gagal. <a href='/admin-login'>Coba Lagi</a>");
+    }
+});
+
+// --- SKENARIO 3: DAFTAR TUGAS (/task-list) ---
 app.get('/task-list', async (req, res) => {
     try {
         const conn = await mysql.createConnection({
@@ -68,28 +89,62 @@ app.get('/task-list', async (req, res) => {
             database: 'db_praktikumsubmit',
             ssl: { rejectUnauthorized: false }
         });
-        const [rows] = await conn.execute("SELECT * FROM submissions");
+        const [rows] = await conn.execute("SELECT id, nim, name, course, status FROM submissions");
         await conn.end();
 
-        // Menggunakan .pop() untuk mengambil murni token SAS-nya saja
-        const sasTokenString = process.env.STORAGE_SAS_URL.split('?').pop();
-
-        let html = "<h2>Daftar Pengumpulan Tugas (Admin)</h2><table border='1' cellpadding='10'><tr><th>NIM</th><th>Nama</th><th>Mata Kuliah</th><th>Status</th><th>File</th></tr>";
+        let html = "<h2>Daftar Tugas (Admin)</h2><table border='1' cellpadding='8'><tr><th>NIM</th><th>Nama</th><th>Mata Kuliah</th><th>Status</th><th>Aksi</th></tr>";
         
         rows.forEach(row => {
-            const downloadUrl = `${row.file_url}?${sasTokenString}`;
             html += `<tr>
                 <td>${row.nim}</td>
                 <td>${row.name}</td>
                 <td>${row.course}</td>
                 <td>${row.status}</td>
-                <td><a href="${downloadUrl}" target="_blank">Unduh Tugas</a></td>
+                <td><a href="/task-detail?id=${row.id}">Lihat Detail</a></td>
             </tr>`;
         });
         html += "</table>";
         res.send(html);
     } catch (error) {
         res.status(500).send("Gagal memuat data: " + error.message);
+    }
+});
+
+// --- SKENARIO 3: DETAIL TUGAS & UNDUH FILE (/task-detail) ---
+app.get('/task-detail', async (req, res) => {
+    const taskId = req.query.id;
+    try {
+        const conn = await mysql.createConnection({
+            host: process.env.DB_HOST, user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD, database: 'db_praktikumsubmit',
+            ssl: { rejectUnauthorized: false }
+        });
+        const [rows] = await conn.execute("SELECT * FROM submissions WHERE id = ?", [taskId]);
+        await conn.end();
+
+        if (rows.length === 0) return res.send("Tugas tidak ditemukan.");
+        
+        const row = rows;
+        // Mengambil token SAS untuk izin akses unduh
+        const sasTokenString = process.env.STORAGE_SAS_URL.split('?').pop();
+        const downloadUrl = `${row.file_url}?${sasTokenString}`;
+
+        res.send(`
+            <h2>Detail Pengumpulan Tugas</h2>
+            <ul>
+                <li><b>NIM:</b> ${row.nim}</li>
+                <li><b>Nama:</b> ${row.name}</li>
+                <li><b>Kelas:</b> ${row.class}</li>
+                <li><b>Mata Kuliah:</b> ${row.course}</li>
+                <li><b>Status:</b> ${row.status}</li>
+                <li><b>Waktu Kumpul:</b> ${row.submitted_at}</li>
+            </ul>
+            <a href="${downloadUrl}" target="_blank"><button>Unduh File Tugas</button></a>
+            <br><br>
+            <a href="/task-list">Kembali ke Daftar Tugas</a>
+        `);
+    } catch (error) {
+        res.status(500).send("Gagal memuat detail: " + error.message);
     }
 });
 
